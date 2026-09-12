@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>My Agents</title>
+<meta name="description" content="Your own AI agents, stored on your phone." />
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#3B3564" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="My Agents" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header id="appbar" class="appbar hidden"></header>
+  <main id="app"></main>
+  <div id="composer" class="composer hidden"></div>
+  <button id="fab" class="fab hidden"></button>
+  <div id="toast" class="toast hidden"></div>
+  <script src="db.js"></script>
+  <script src="app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("sw.js").catch(function () {});
+      });
+    }
+  </script>
+</body>
+</html>
