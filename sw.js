@@ -1,4 +1,4 @@
-var CACHE = "myagents-v1";
+var CACHE = "myagents-v2";
 var SHELL = ["./", "./index.html", "./styles.css", "./db.js", "./app.js",
              "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 

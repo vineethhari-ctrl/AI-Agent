@@ -407,8 +407,14 @@ function send(agent, text) {
       if (r.status === 400 && /API key not valid/i.test(msg)) {
         friendly = "That API key was rejected. Check it in settings.";
       } else if (r.status === 404) {
-        friendly = "The model \"" + state.settings.model + "\" was not found for this key. " +
-                   "Try a different model name in settings.";
+        friendly = "Google could not use \"" + state.settings.model + "\" with this key.\n\n" +
+                   "Google said: " + msg + "\n\n" +
+                   "Open settings and tap \u201CCheck my key\u201D to see which models this key can " +
+                   "actually use.";
+      } else if (r.status === 403) {
+        friendly = "This key was refused (403).\n\nGoogle said: " + msg + "\n\n" +
+                   "Usually this means the Generative Language API is not enabled on the key\u2019s " +
+                   "project, or the key has restrictions on it.";
       } else if (r.status === 429) {
         friendly = "Google's free tier rate limit was hit. Wait a minute and try again.";
       } else {
@@ -566,6 +572,9 @@ function renderSettings() {
 
     '<div style="height:18px"></div>' +
     '<button class="btn primary wide" id="s-save">Save</button>' +
+    '<div style="height:10px"></div>' +
+    '<button class="btn wide" id="s-check">Check my key</button>' +
+    '<div id="s-result"></div>' +
 
     '<div class="group-label" style="margin-top:28px">BACKUP</div>' +
     '<div class="stack">' +
@@ -585,6 +594,66 @@ function renderSettings() {
     state.settings.key = val("s-key");
     state.settings.model = val("s-model") || "gemini-2.0-flash";
     save().then(function () { toast("Saved"); go("home"); });
+  };
+
+  document.getElementById("s-check").onclick = function () {
+    var key = val("s-key");
+    var box = document.getElementById("s-result");
+    if (!key) { toast("Paste your API key first"); return; }
+    box.innerHTML = '<div class="notice">Asking Google\u2026</div>';
+
+    fetch("https://generativelanguage.googleapis.com/v1beta/models?key=" + encodeURIComponent(key))
+      .then(function (res) {
+        return res.json().then(function (d) { return { ok: res.ok, status: res.status, d: d }; });
+      })
+      .then(function (r) {
+        if (!r.ok) {
+          var m = (r.d && r.d.error && r.d.error.message) || ("HTTP " + r.status);
+          box.innerHTML = '<div class="notice" style="background:#FBECE9">' +
+            '<strong>The key did not work.</strong><br><br>Google said:<br>' + esc(m) +
+            '<br><br>Most often this means the Generative Language API is not enabled for this ' +
+            'key\u2019s project, or the key is restricted to certain apps or IP addresses. ' +
+            'Making a fresh key in AI Studio usually fixes it.</div>';
+          return;
+        }
+
+        var models = (r.d.models || []).filter(function (m) {
+          return (m.supportedGenerationMethods || []).indexOf("generateContent") !== -1;
+        }).map(function (m) {
+          return String(m.name).replace(/^models\//, "");
+        }).filter(function (n) {
+          return n.indexOf("embedding") === -1 && n.indexOf("aqa") === -1;
+        });
+
+        if (!models.length) {
+          box.innerHTML = '<div class="notice">The key works, but no chat models came back. ' +
+            'That is unusual \u2014 check the project in AI Studio.</div>';
+          return;
+        }
+
+        box.innerHTML = '<div class="notice"><strong>The key works.</strong> ' +
+          models.length + ' models available. Tap one to use it:</div>' +
+          '<div class="stack">' + models.slice(0, 25).map(function (n) {
+            return '<button class="btn wide" data-model="' + esc(n) + '" ' +
+              'style="text-align:left;font-weight:500;font-size:14px">' + esc(n) + '</button>';
+          }).join("") + '</div>';
+
+        var picks = box.querySelectorAll("[data-model]");
+        for (var i = 0; i < picks.length; i++) {
+          (function (b) {
+            b.onclick = function () {
+              document.getElementById("s-model").value = b.getAttribute("data-model");
+              state.settings.key = val("s-key");
+              state.settings.model = b.getAttribute("data-model");
+              save().then(function () { toast("Using " + state.settings.model); go("home"); });
+            };
+          })(picks[i]);
+        }
+      })
+      .catch(function () {
+        box.innerHTML = '<div class="notice" style="background:#FBECE9">Could not reach Google. ' +
+          'Check your internet connection.</div>';
+      });
   };
 
   document.getElementById("s-export").onclick = function () {
